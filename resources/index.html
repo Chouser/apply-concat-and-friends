@@ -1,0 +1,251 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>apply concat and friends</title>
+<style>
+html {
+  background: url('pasley.jpg');
+  background-size: 200px;
+  font-family: serif;
+}
+main {
+  max-width: 70ch;
+  padding: 2ch;
+  margin: auto;
+  background: #fff;
+}
+p code {
+  white-space: nowrap;
+  background: #eef;
+}
+pre {
+  border-left: 4px #ccf solid;
+  padding-left: 2em;
+  background: #eaeaff;
+}
+.twitter-tweet {
+  padding: 0px 20px 11.6px 20px;
+  border: 1px solid #e1e8ed;
+  border-radius: 5px;
+  max-width: 520px;
+}
+.laziness-svg { width: 115px; height 56px; float: right;}
+.byline { text-align: right; font-style: italic; }
+
+</style>
+<!--
+<link href="https://fonts.googleapis.com/css?family=EB+Garamond" rel="stylesheet">
+-->
+
+</head>
+
+<body>
+
+<main>
+<h1><code>apply concat</code><em> and friends</em></h1>
+
+<p>We begin with these electrifying words from a sage of Clojure:</p>
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just realized that (mapcat seq x) is a pleasant alternative to (apply concat x). <a href="https://twitter.com/hashtag/clojure?src=hash&amp;ref_src=twsrc%5Etfw">#clojure</a></p>&mdash; Christophe Grand (@cgrand) <a href="https://twitter.com/cgrand/status/243793887532052480?ref_src=twsrc%5Etfw">September 6, 2012</a></blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<p>I have been an unquestioning fan of <code>mapcat seq</code> ever since. So I
+was startled find that not only do most people disagree with me, but many perfer
+a rather dangerous alternative!</p>
+
+<p>But before we get into all the alternatives, what is this <code>apply
+concat</code> that Christophe uses as his foil?</p>
+
+<h2><code>(apply concat xs)</code>
+<img alt="A happy cat with sleepy eyes."
+  src="apply-concat.svg" onerror="this.src='apply-concat.jpg'"
+  style="width: 157px; height: 152px; float: right; background: #fff">
+<img alt="Laziness: 4/5" src="lazy4.svg" class="laziness-svg">
+</h2>
+<p>Here's an example of what <code>apply concat</code> can do:</p>
+
+<pre>
+(apply concat [[1 2 3] [4 5 6] [7 8 9]])
+;=&gt; (1 2 3 4 5 6 7 8 9)
+</pre>
+
+<p>This is a way to remove one layer of nesting in a sequence of sequences. I
+think it's comfortable for people because <code>concat</code> is already very
+close to what we want, and <code>apply</code> is straightforward for getting the
+rest of the way there.</p>
+
+<p>It's also one of the lazier options among the several we will examine, a
+detail you might guess by the look in its eyes. When called, it will realize the
+first several sequences of the input, but will pull none of the elements from
+any them until required. </p>
+
+<p>So if <code>apply concat</code> gets the job done, is easy to understand, and
+has such a cute illustration, why even consider anything else?</p>
+
+
+<h2><code>(mapcat seq xs)</code>
+<img alt="Cat on her back with a treasure map on her belly."
+  src="mapcat-seq.svg" onerror="this.src='mapcat-seq.jpg'"
+  style="width: 286px; height: 135px; float: right">
+</h2>
+<img alt="Laziness: 3/5" src="lazy3.svg" class="laziness-svg" style="clear: right">
+
+<p>This one gets the job done too. It also realizes the first several
+sequences, just like <code>apply concat</code>. In fact it realizes exactly the
+same number of sequences (four, in Clojure 1.10). This surprised me, so I peeked
+at the definition of <code>mapcat</code> and found it includes this expression:
+
+<pre>(apply concat (apply map f colls))</pre>
+
+<p>Ah ha! The top-level laziness is the same because <code>mapcat</code>
+actually <i>calls</i> <code>apply concat</code>. However, the use
+<code>seq</code> means that the first element of each sequence is realized as
+soon as the <code>mapcat seq</code> is, making it a little more eager than
+<code>apply concat</code>.</p>
+
+<p>So what did Christophe find so <em>pleasant</em> about this alternative
+those many years ago? I haven't asked him yet, but the reason it's been my
+favorite is that it is the <em>shortest</em> of the good solutions
+(we'll talk about why <code>flatten</code> doesn't qualify in a moment).  It beats
+<code>reduce into</code> by a character and <code>apply concat</code> by two!
+This is critical when golfing your <a href="http://www.4clojure.com/">4clojure</a>
+solutions.</p>
+
+<p>Ah, but <code>flatten</code> is indeed even shorter! So why my bold claim
+that it isn't a "good solution"?</p>
+
+<h2><code>(flatten xs)</code>
+<img alt="Flattened cat. Looks surprised."
+  src="flatten.svg" onerror="this.src='flatten.jpg'"
+  style="width: 211px; height: 213px; 135px; float: right">
+</h2>
+
+<p>I don't want malign <code>flatten</code> too much: it's powerful, lazy,
+and an excellent example usage of <code>tree-seq</code>. Although its <a
+  href="https://groups.google.com/forum/#!msg/clojure/sqok3RqGEC8/m63Kv_qYUDgJ">implementation</a>
+is succinct, it's not very obvious, so it can be an valuable tool when you need
+it.</p>
+
+<img alt="Laziness: 4/5" src="lazy4.svg" class="laziness-svg" style="clear:right">
+
+<p>But you almost never need it.</p>
+
+<p>Only rarely do I have
+multiple levels of nested sequences that I want to flatten, for which
+<code>flatten</code>'s idea of what things are sequences (lists but not sets,
+vectors but not arrays) matches my needs. And if <code>flatten</code> is used
+when only one level of flattening is desired, surprising and an unwanted
+consequences can result. I'm not alone in warning about its use.
+<a href="http://clojure-log.n01se.net/date/2012-05-01.html#19:34">Others</a> <a href="http://clojure-log.n01se.net/date/2014-01-10.html#11:43d">have</a> <a href="http://clojure-log.n01se.net/date/2016-12-09.html#02:17">mentioned</a> <a href="https://clojurians-log.clojureverse.org/clojure/2016-04-09/1460232281.004707#inst-2016-04-09T23:04:41.004707Z">it</a>, and Eric Normand even wrote a <a href="https://purelyfunctional.tv/issues/purelyfunctional-tv-newsletter-322-tip-avoid-flatten-when-possible/">nice example</a> of how it can betray you.</p>
+</p>
+
+<p>So imagine my dismay when <code>flatten</code> briefly led my Twitter poll,
+and ended up a close second behind <code>apply concat</code>!</p>
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just because they do different things doesn&#39;t mean you can&#39;t have a favorite.</p>&mdash; Chouser (@chrishouser) <a href="https://twitter.com/chrishouser/status/1118913793512411136?ref_src=twsrc%5Etfw">April 18, 2019</a>
+<img src="shot-20190517-090932.png" style="width: 175px; height: 172px">
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<p>In fact it was that poll result that inspired this post. Please don't use <code>flatten</code> unthinkingly, especially when there are so many other attractive alternatives!</p>
+
+<p>For example, why not use <code>reduce</code>?
+
+<h2><code>(reduce into xs)</code>
+<img alt="Laziness: 1/5" src="lazy1.svg" class="laziness-svg">
+<img alt="A much smaller cat, looking somewhat startled."
+  src="reduce-into.svg" onerror="this.src='reduce-into.jpg'"
+  style="width: 71px; height: 68px; float: right; margin: 0 2em">
+</h2>
+
+<p>Perhaps laziness doesn't fit your needs, and you'd rather use something as
+eager as possible. Well then, <code>reduce into</code> is your bag. Since
+<code>into</code> uses an existing collection instance, this won't return a
+sequence like the others we've looked at so far. While it returns what you
+probably expect for vectors of vectors, if the first collection you give it is
+a set or list, the result might not be in the order you want.
+
+<pre>
+(reduce into [[1 2 3] [4 5 6] [7 8 9]])  ;=&gt; [1 2 3 4 5 6 7 8 9]
+(reduce into [#{1 2 3} [4 5 6] [7 8 9]]) ;=&gt; #{7 1 4 6 3 2 9 5 8}
+(reduce into '[(1 2 3) (4 5 6) (7 8 9)]) ;=&gt; (9 8 7 6 5 4 1 2 3)
+</pre>
+
+<p>On the other hand it may be exactly what you want for combining several maps into one.</p>
+
+<pre>
+(reduce into '[{a 1, b 2} {c 3, d 4} {e 5 f 6}])
+;=&gt; {a 1, b 2, c 3, d 4, e 5, f 6}
+</pre>
+
+<p>But wait, there's more!  Next up is <code>mapcat seq</code>'s cousin <code>mapcat identity</code>.</p>
+
+<h2><code>(mapcat identity xs)</code>
+<img alt="A very lazy cat, curled up, asleep, with a treasure map on its side"
+  src="mapcat-identity.svg" onerror="this.src='mapcat-identity.jpg'"
+  style="width: 240px; height: 156px; float: right;">
+<img alt="Laziness: 4/5" src="lazy4.svg" class="laziness-svg" style="clear: right; float: left">
+</h2>
+
+<p>This gregarious creature has the laziness of <code>apply
+concat</code>, the same first name as <code>mapcat seq</code>, and the same last
+name as that Bourne movie (not to be confused with the Bourne Shell.</p>
+
+<p>In fact its behavior is so similar to <code>apply concat</code> that the only
+reason to include it here is because its just so cute.</p>
+
+<p>Ok, just one more:</p>
+
+<h2><code>(sequence cat xs)</code>
+<img alt="A sequence of three eager cats"
+  src="sequence-cat.svg" onerror="this.src='sequence-cat.jpg'"
+  style="width: 259px; height: 159px; float: right">
+<img alt="Laziness: 2/5" src="lazy2.svg" class="laziness-svg">
+</h2>
+
+<p>This one's interesting because it combines an old function
+(<code>sequence</code> introduced Feb 2009) with one that came a few years later
+(<code>cat</code>, May 2012).</p>
+
+<p>It also has an unusual laziness profile, fully realizing the first sequence
+the moment its called, and then realizing all the rest if any actual elements
+are requested (such as by calling <code>first</code> on the result).</p>
+
+<h1>Finally...</h1>
+
+<p>I wrote <a href="https://github.com/chouser/mapcatseq">some code</a> to help
+explore this space. It's a bit of a mess but includes the generative tests I
+used to discover that <code>eduction cat</code> is yet another option. It also
+has a mechanism that prints only the parts of lazy sequences that have already
+been realized, instead of realizing the whole sequence like print usually does.
+Finally, it also defines a <code>lazier-mapcat</code> which can be used to build
+the laziest solution of all.</p>
+
+<p>I didn't compare the performance of these alternatives, because I doubt such
+microbenchmarks would have any value at all. So as long as you don't pick
+<code>flatten</code> when you don't need it, I think you're probably better off
+choosing which to use based on the cuteness of its illustration.</p>
+
+<img alt="Mapcat seq, a cat on her back with a treasure map on her belly."
+  src="mapcat-seq.svg" onerror="this.src='mapcat-seq.jpg'"
+  style="width: 286px; height: 135px; float: right">
+
+<p>The fact that <code>apply concat</code> is more fundamental than <code>mapcat
+seq</code> shook me a bit, and raised my estimation of it, so I commend all of
+you who voted for it in the first place. I will probably continue use
+<code>mapcat seq</code> when its eagerness doesn't matter, because don't you
+just want to rub its belly!?</p>
+
+<div class="byline">by Chouser, <time datetime="2019-05-21">May 21, 2019</time></div>
+<div class="byline">illustrations by Anna Houser</div>
+
+<p>P.S. If you have a sequence of maps, I just realized <code>(apply merge
+x)</code> is a pleasant alternative to <code>(reduce into x)</code>.</p>
+
+</main>
+
+</body>
+</html>

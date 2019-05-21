@@ -1,50 +1,10 @@
 # mapcatseq
 
-My twitter followers and I disagree about our favorite way to flatten a
-sequence of sequences. They seem to like `(apply concat xs)`, whereas I have
-preferred `(mapcat seq xs)` ever since Christophe Grand mentioned it a while
-ago:
+Code to supplement a (blog post)[resources/index.html]
 
-    Just realized that (mapcat seq x) is a pleasant alternative to (apply concat x). #clojure
-
-    3:32 PM - (6 Sep 2012)[https://twitter.com/cgrand/status/243793887532052480]
-
-So what's the difference?
-
-== apply concat
-
-I think this one is comfortable for people because `concat` is already very
-close to what we want, and `apply` is a straightforward way to get the rest of
-the way there.
-
-`apply concat` won a Twitter poll I posted a couple weeks ago, 
-
-
-
-
-
-Above is pictured `(mapcat seq xs)`, one of the ways that you can use Clojure to
-flatten nested sequences. There are at least five other ways to do almost but
-not quite exactly the same thing, but it's been my favorite ever since
-Christophe Grand mentioned it a while ago:
-
-
-`reduce into`
-- final collection depends on first collection of input
-
-(reduce into [[1 2] [3 4] [5 6]])  ;=> [1 2 3 4 5 6]
-(reduce into '[(1 2) [3 4] [5 6]]) ;=> (6 5 4 3 1 2)
-
-`flatten`
-- must pay attention to the types of objects at the third level of nesting
-
-
-
+## Additional notes
 Laziness is usually, though not always, considered a good thing in this context.
 "I get more done when I'm lazy"
-
-All of these have the word "xs", but we can change that to any other word you
-want, as long as they're all the same:
 
 (apply concat xs)
 Laziness level: 4 (likes to get a general sense of how things are going to go, but in no hurry to do them)
