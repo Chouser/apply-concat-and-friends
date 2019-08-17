@@ -11,6 +11,7 @@ html {
   background-size: 200px;
   font-family: serif;
 }
+figcaption { font-family: sans-serif; }
 main {
   max-width: 70ch;
   padding: 2ch;
@@ -26,14 +27,24 @@ pre {
   padding-left: 2em;
   background: #eaeaff;
 }
+code {
+  background: #eaeaff;
+  padding: 0 0.5ex;
+}
 .twitter-tweet {
+  /*
   padding: 0px 20px 11.6px 20px;
   border: 1px solid #e1e8ed;
   border-radius: 5px;
   max-width: 520px;
+  */
 }
 .laziness-svg { width: 115px; height 56px; float: right;}
 .byline { text-align: right; font-style: italic; }
+.dialog td:first-child {
+  text-align: right;
+  padding-right: 1ex;
+}
 
 </style>
 <!--
@@ -47,17 +58,110 @@ pre {
 <main>
 <h1><code>apply concat</code><em> and friends</em></h1>
 
-<p>We begin with these electrifying words from a sage of Clojure:</p>
+<p>The other day at work, writing a function, I typed <code>mapcat
+seq</code>...</p>
+
+<table class="dialog">
+<tr><td><b>Me: </b></td><td>Hey, are you familiar with this?</td></tr>
+<tr><td><b>Pairing partner: </b></td><td>Nope</td></tr>
+<tr><td><b>Me: </b></td><td>Ah, well <code>(mapcat seq xs)</code> is just like <code>(apply concat xs)</code></td></tr>
+<tr><td><b>Pairing partner: </b></td><td>Oh, so why not just use <code>(apply concat xs)</code>?</td></tr>
+<tr><td><b>Me: </b></td><td>...</td></tr>
+</table>
+
+<p>The truth is I hadn't thought of <code>mapcat seq</code> until Christophe
+first mentioned it some years ago, but then I noticed it saves 2 characters
+compared to <code>apply concat</code> and have used it ever since.</p>
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just realized that (mapcat seq x) is a pleasant alternative to (apply concat x). <a href="https://twitter.com/hashtag/clojure?src=hash&amp;ref_src=twsrc%5Etfw">#clojure</a></p>&mdash; Christophe Grand (@cgrand) <a href="https://twitter.com/cgrand/status/243793887532052480?ref_src=twsrc%5Etfw">September 6, 2012</a></blockquote>
+
+<figure style="float: right; width: 286px;">
+<img alt="Cat on her back with a treasure map on her belly."
+  src="mapcat-seq.svg" onerror="this.src='mapcat-seq.jpg'"
+  style="width: 286px; height: 135px">
+<figcaption>
+<b><code>mapcat seq</code> – </b>A close cousin to <code>mapcat identity</code>,
+and my favorite for the last several years.
+</figcaption>
+</figure>
+
+<p>Two characters is of course a silly reason to choose one over the other, in
+all but the most <a href="http://www.4clojure.com/">4clojure</a> of
+circumstances. But they are very similar and there are other alternatives, so
+which is best? I decided to carefully study this question by conducting a
+rigorously controlled and scientific Twitter poll. Twenty-four hours later I had
+my answer:</p>
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just because they do different things doesn&#39;t mean you can&#39;t have a favorite.</p>&mdash; Chouser (@chrishouser) <a href="https://twitter.com/chrishouser/status/1118913793512411136?ref_src=twsrc%5Etfw">April 18, 2019</a>
+<img src="shot-20190517-090932.png" style="width: 175px; height: 172px">
+</blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<p>I don't know what I was expecting, but I can live with more respondants liking <code>apply
+concat</code> than the alternatives in the poll. Maybe I should conform for the
+sake of community. But it barely beat out <code>flatten</code>, and that is
+entirely unacceptable! I had no choice to but to immediately dawdle,
+procrastinate, and finally four months later write a blog post about it.</p>
+
+<h2><em>The infamous </em><code>flatten</code></h2>
+
+<p>The other three options in the poll are indeed very similar. In fact their
+differences are so subtle, I really doubt you will ever regret whichever one use
+choose to use. I dare not, however, make this same prediction about
+<code>flatten</code>, for I fear if you use it in innocence it will betray
+you.</p>
+
+<p>To explain why, let's first look at an example for which all four
+expressions return the same value:</p>
+
+<pre>
+(mapcat seq      [[1 2 3] [4 5 6] [7 8 9]])  ;=&gt; [1 2 3 4 5 6 7 8 9]
+(mapcat identity [[1 2 3] [4 5 6] [7 8 9]])  ;=&gt; [1 2 3 4 5 6 7 8 9]
+(apply concat    [[1 2 3] [4 5 6] [7 8 9]])  ;=&gt; [1 2 3 4 5 6 7 8 9]
+(flatten         [[1 2 3] [4 5 6] [7 8 9]])  ;=&gt; [1 2 3 4 5 6 7 8 9]
+</pre>
+
+
+
+
+
+
+<hr>
+
+Since Twitter polls allow up to four answers, I thought up a couple other options and
+
+Once Christophe brought it to my attention
+
+
+The actual reason I used `mapcat seq` is because is saves 2 characters compared to `apply concat`
+in that case was because I always do. The
+reason I always use it is because when I was golfing 4clojure solutions, a
+Clojure hero of mine mentioned it, and I realized it would save me 2 characters.
+
+
+
+
+
+Don't use `flatten` unless you're quite sure you know what `sequence?` does.
+`flatten` walks a tree of sequences, returning leaves of the tree in single
+flat sequence. If you've got a sequence of sequences
+
+
+
+
+<p>This tour begins with a little push from a wise practitioner of Clojure:</p>
 
 <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just realized that (mapcat seq x) is a pleasant alternative to (apply concat x). <a href="https://twitter.com/hashtag/clojure?src=hash&amp;ref_src=twsrc%5Etfw">#clojure</a></p>&mdash; Christophe Grand (@cgrand) <a href="https://twitter.com/cgrand/status/243793887532052480?ref_src=twsrc%5Etfw">September 6, 2012</a></blockquote>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-<p>I have been an unquestioning fan of <code>mapcat seq</code> ever since. So I
-was startled find that not only do most people disagree with me, but many perfer
-a rather dangerous alternative!</p>
+<p>I read that several years ago, and ever since I have been an unquestioning
+fan of <code>mapcat seq</code>. Recently however I was startled to learn that
+not only do most people disagree with me, but many perfer a rather dangerous
+alternative!</p>
 
-<p>But before we get into all the alternatives, what is this <code>apply
-concat</code> that Christophe uses as his foil?</p>
+<p>It turns out there are several alternatives to choose from, so
+<p>Let's start our exploration of several alternatives, including Chritophe's alternative and several others
+with what is apparently the favorite, code>apply concat</code>.</p>
 
 <h2><code>(apply concat xs)</code>
 <img alt="A happy cat with sleepy eyes."
