@@ -83,8 +83,8 @@
                            [[1 2] [3 [4 4 4]]]
                            [#{1 2} #{3 4}]
                            [(1 2) (3 4) (5 6)]
-                           ["12" "34"]
-                           ]]
+                           ["12" "34"]]]
+
                  (assoc
                   (zipmap (keys squashers)
                           (map #(pr-str ((catch-all %) arg)) (vals squashers)))
@@ -121,21 +121,24 @@
 
 (defn find-phrases []
   (let [xs [[1 2 3] [4 5 6] [7 8 9]]
-        flat (mapcat seq xs)
-        vars (vals (ns-publics 'clojure.core))
-        vars (remove #('#{iterate gen-interface split-at primitives-classnames var-set trampoline cycle hash-ordered-coll var? meta read+string volatile? seque refer-clojure bytes denominator fnext spit} (.sym %)) vars)
-        vars (filter #(instance? clojure.lang.IFn @%) vars)
+        goal (mapcat seq xs)
+        exclude-syms '#{iterate gen-interface split-at primitives-classnames
+                        var-set trampoline cycle hash-ordered-coll var? meta
+                        read+string volatile? seque refer-clojure bytes
+                        denominator fnext spit}
+        vars (->> (vals (ns-publics 'clojure.core))
+              (remove #(exclude-syms (.sym %)))
+              (filter #(instance? clojure.lang.IFn @%)))]
 
-        phrases
-        (doall
-         (for [v0 vars
-               v1 vars
-               :when (not (= '#{[keep-indexed take-nth] [bytes bytes]} [(.sym v0) (.sym v1)]))
-               :when (try
-                        (= flat (@v0 @v1 xs))
-                        (catch Throwable t false))]
-           (list v0 v1 'xs)))]
-    (prn :phrases phrases)))
+    (doall
+     (for [v0 vars
+           v1 vars
+           :when (not (= '#{[keep-indexed take-nth] [bytes bytes]}
+                         [(.sym v0) (.sym v1)]))
+           :when (try
+                    (= goal (@v0 @v1 xs))
+                    (catch Throwable t false))]
+       (list v0 v1 'xs)))))
 
 ;; read+string hash-ordered-coll
 
@@ -148,7 +151,7 @@
 
   (test-some 10000 t2 [:apc :mci :mcs :sqc :lmc])
 
-  (def ps (find-phrases))
+  (def ps (find-phrases)))
 
 ;;;;; (print-laziness)
 ;; |  :fn |                                             :a |                    :c |
@@ -173,6 +176,3 @@
 ;; | :sqc | ((0 1 2) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) | ((1 2 (...)) (5 6 (...))) |
 ;; | :lmc |                                  ((0 ...) ...) |             ((1 ...) ...) |
 ;; | :edc | ((0 1 2) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) | ((1 2 (...)) (5 6 (...))) |
-
-  )
-
