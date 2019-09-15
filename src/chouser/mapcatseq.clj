@@ -102,18 +102,18 @@
                     (zipmap args (map #(pr-str ((catch-all (squashers k)) %)) args))
                     :fn k)))))
 
-(defn lazier [coll]
+(defn seq1 [s]
   (lazy-seq
-   (when (seq coll)
-     (cons (first coll) (lazier (rest coll))))))
+   (when-let [[x] (seq s)]
+     (cons x (seq1 (rest s))))))
 
 (defn print-laziness []
   (print-table [:fn :a :c]
                (for [k [:flt :rei :apc :mci :mcs :sqc :lmc :edc]]
-                 (let [a (lazier (map (fn [i] (lazier (range (* i 3) (+ (* i 3) 3))))
-                                      (range 5)))
-                       b (lazier [(lazier [1 2 3]) (lazier [4 5 6]) (lazier [7 8 9]) (lazier [10 11 12])])
-                       c (lazier [(lazier [1 2 (lazier [3 4])]) (lazier [5 6 (lazier [7 8])])])]
+                 (let [a (seq1 (map (fn [i] (seq1 (range (* i 3) (+ (* i 3) 3))))
+                                    (range 5)))
+                       b (seq1 [(seq1 [1 2 3]) (seq1 [4 5 6]) (seq1 [7 8 9]) (seq1 [10 11 12])])
+                       c (seq1 [(seq1 [1 2 (seq1 [3 4])]) (seq1 [5 6 (seq1 [7 8])])])]
                    (doseq [x [a b c]]
                      ((squashers k) x))
                    (binding [*hold-the-lazy* true]

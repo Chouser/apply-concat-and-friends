@@ -64,6 +64,8 @@ code {
 
 <main>
 
+<!--
+
 <h1><code>apply concat</code> <em>and friends</em></h1>
 
 <p>The other day at work, writing a function, I typed <code>mapcat
@@ -345,7 +347,14 @@ take multiple transducers and one collection. But since we only have one of
 each, either <code>(eduction cat xs)</code> or <code>(sequence cat xs)</code>
 will work.</p>
 
-<h2>Printing without forcing</h2>
+<p>Several of the <code>apply concat</code> alternatives we've found are so
+far indistinguishable from each other. Although <code>flatten</code> and
+<code>reduce into</code> behave differently, the rest return apparently
+identical lazy sequences, so how shall we decide which to use? One obvious
+metric would be speed, but microbenchmarks are difficult and of questionable
+value. So why don't we look at something a bit more concrete: laziness.</p>
+
+<h2>Tools for exploring laziness</h2>
 
 <figure style="float: right; width: 157px">
 <img alt="A happy cat with sleepy eyes."
@@ -356,25 +365,19 @@ will work.</p>
 </figcaption>
 </figure>
 
-<p>Several of the <code>apply concat</code> alternatives we've found are so far
-indistinguishable from each other. Although <code>flatten</code> and
-<code>reduce into</code> behave differently, the rest return apparently
-identical lazy sequences, so how shall we decide which to use? One obvious
-metric would be speed, but microbenchmarks are difficult and of questionable
-value. So why don't we look at something a bit more concrete: laziness.</p>
-
 <p>The laziness of a sequence is usually a bit tricky to observe. The easiest
 approach is through side effects triggered as the sequence is realized, for
 example <code>(map prn [1 2 3])</code> which returns a sequence of
 <code>nil</code>s but prints each number as it is forced. This is sometimes
 sufficient, but the input suquences we're dealing with here are nested, which
-would print confusingly intermingled elements, so let's try something a bit more
-elegant.</p>
+would print confusingly intermingled elements, so let's build a couple of tools
+to make laziness easier to see.</p>
 
 <p>Clojure's built-in printer (the <i>P</i> in <i>REPL</i>) forces lazy seqs.
-Below is code that <i>replaces</i> the default sequence printer with one that
-optionally does <b>not</b> force lazy seqs, and instead prints unrealized values
-as elipses (<code>...</code>).</p>
+But since the REPL printer, as well as <code>prn</code> and <code>pr-str</code>,
+delegate to the <code>print-method</code> multimethod, we can replace the
+implementation for <code>ISeq</code> with one that doesn't force lazy seqs. This
+is the first tool we'll need.</p>
 
 <pre>
 (def ^:dynamic *hold-the-lazy* false)
@@ -414,6 +417,14 @@ where there are unrealized values:</p>
 </pre>
 <pre class="prn">(...)</pre>
 
+<p>Or we can rebind the root value to change the default behavior:</p>
+
+<pre>
+(alter-var-root #'chouser.mapcatseq/*hold-the-lazy* (constantly true))
+(map inc (range 50))
+</pre>
+<pre class="prn">(...)</pre>
+
 <p>Calling <code>first</code> on the sequence forces the <code>map</code>
 function consume some of the <i>range</i> in order to compute the first
 <i>inc</i>. But how much computation does it actually do?</p>
@@ -429,12 +440,15 @@ function consume some of the <i>range</i> in order to compute the first
 21 22 23 24 25 26 27 28 29 30 31 32 ...)</pre>
 </pre>
 
-<p>When <code>map</code> is asked to compute the first value, it actually
-computes the first 32 values, a feature called <i>chunking</i> that is meant to
-reduce overhead. Also note that this the realization of the values is a
-side-effect of calling <code>(first xs)</code>, since we discard that
-expressions return value and instead print the origal <code>xs</code>
-sequence.</p>
+<p>Note that the <i>realization</i> of the values is a side-effect of calling
+<code>(first xs)</code>, which is why we can discard that expression's return
+value and instead print the origal <code>xs</code> sequence afterward.</p>
+
+<p>Another detail to notice is that when <code>map</code> is asked to compute
+the first value, it actually computes the first 32 values, a feature called
+<i>chunking</i> that is meant to amortize the overhead of creating the new lazy
+sequence. But if we want to understand precisely how lazy our various
+expressions are, we're going to need something that doesn't chunk</p>
 
 -->
 
