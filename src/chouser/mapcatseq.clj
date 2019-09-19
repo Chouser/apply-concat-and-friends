@@ -1,13 +1,31 @@
 (ns chouser.mapcatseq
-  (:require [clojure.test.check :as tc]
+  (:require [clojure.string :as str]
+            [clojure.test.check :as tc]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [clojure.pprint :refer [print-table]]
             [clojure.repl :refer :all]))
 
-(def sort-idempotent-prop
-  (prop/for-all [v (gen/vector gen/int)]
-    (= (sort v) (sort (sort v)))))
+(defn find-phrases []
+  (let [xs [[1 2 3] [4 5 6] [7 8 9]]
+        goal (mapcat seq xs)
+        exclude-syms '#{iterate gen-interface split-at primitives-classnames
+                        var-set trampoline cycle hash-ordered-coll var? meta
+                        read+string volatile? seque refer-clojure bytes
+                        denominator fnext spit}
+        vars (->> (vals (ns-publics 'clojure.core))
+              (remove #(exclude-syms (.sym %)))
+              (filter #(instance? clojure.lang.IFn @%)))]
+
+    (doall
+     (for [v0 vars
+           v1 vars
+           :when (not (= '#{[keep-indexed take-nth] [bytes bytes]}
+                         [(.sym v0) (.sym v1)]))
+           :when (try
+                    (= goal (@v0 @v1 xs))
+                    (catch Throwable t false))]
+       (list v0 v1 'xs)))))
 
 (defn lazier-mapcat [f coll]
   (lazy-seq
@@ -21,16 +39,21 @@
 ;; mapcat macroexpand
 ;; mapcat eduction
 
+(def phrases
+  '[(flatten)
+    (apply concat)
+    (mapcat identity)
+    (mapcat seq)
+    (reduce into)
+    (sequence cat)
+    (eduction cat)
+    #_(lazier-mapcat identity) ;; not worth talking about
+    #_(apply into)]) ;; doesn't even work
+
 (def squashers
-  {:apc (fn [xs] (apply concat xs))
-   ;; :api  (fn [xs] (apply into xs)) ;; nope
-   :flt (fn [xs] (flatten xs))
-   :mci (fn [xs] (mapcat identity xs))
-   :mcs (fn [xs] (mapcat seq xs))
-   :rei (fn [xs] (reduce into xs))
-   :sqc (fn [xs] (sequence cat xs))
-   :edc (fn [xs] (eduction cat xs))
-   :lmc (fn [xs] (lazier-mapcat identity xs))})
+  (for [syms phrases]
+    [(str/join " " syms)
+     (eval `(fn [xs#] (~@syms xs#)))]))
 
 (defn t0 [a b]
   (prop/for-all [v (gen/vector (gen/vector gen/int))]
@@ -45,10 +68,6 @@
 
 (defn test-all [num t]
   (doseq [[k f] squashers]
-    (prn k (tc/quick-check num (t (catch-all (:mcs squashers)) (catch-all f))))))
-
-(defn test-some [num t sqs]
-  (doseq [[k f] (map #(find squashers %) sqs)]
     (prn k (tc/quick-check num (t (catch-all (:mcs squashers)) (catch-all f))))))
 
 (defn t1 [a b]
@@ -77,102 +96,71 @@
   (write-lazy-seq false coll w)
   (.write w ")"))
 
-(defn print-results []
-  (print-table [:arg :flt :rei :apc :mci :mcs :sqc :lmc]
-               (for [arg '[[[1 2] [3 4] [5 6]]
-                           [[1 2] [3 [4 4 4]]]
-                           [#{1 2} #{3 4}]
-                           [(1 2) (3 4) (5 6)]
-                           ["12" "34"]]]
-
-                 (assoc
-                  (zipmap (keys squashers)
-                          (map #(pr-str ((catch-all %) arg)) (vals squashers)))
-                  :arg arg))))
-
-(defn print-results []
-  (let [args '[[[1 2] [3 4] [5 6]]
-               [[1 2] [3 [4 4 4]]]
-               [#{1 2} #{3 4}]
-               [(1 2) (3 4) (5 6)]
-               ["12" "34"]]]
-    (print-table (cons :fn args)
-                 (for [k [:flt :rei :apc :mci :mcs :sqc :lmc]]
-                   (assoc
-                    (zipmap args (map #(pr-str ((catch-all (squashers k)) %)) args))
-                    :fn k)))))
-
 (defn seq1 [s]
   (lazy-seq
    (when-let [[x] (seq s)]
      (cons x (seq1 (rest s))))))
 
-(defn print-laziness []
-  (print-table [:fn :a :c]
-               (for [k [:flt :rei :apc :mci :mcs :sqc :lmc :edc]]
-                 (let [a (seq1 (map (fn [i] (seq1 (range (* i 3) (+ (* i 3) 3))))
-                                    (range 5)))
-                       b (seq1 [(seq1 [1 2 3]) (seq1 [4 5 6]) (seq1 [7 8 9]) (seq1 [10 11 12])])
-                       c (seq1 [(seq1 [1 2 (seq1 [3 4])]) (seq1 [5 6 (seq1 [7 8])])])]
-                   (doseq [x [a b c]]
-                     ((squashers k) x))
-                   (binding [*hold-the-lazy* true]
-                     {:fn k :a (pr-str a) :b (pr-str b) :c (pr-str c)})))))
+(defn observe-laziness [apply-seq]
+  (cons
+    {:phrase "<i>forced</i>"
+     :input (binding [*hold-the-lazy* false]
+              (pr-str (apply-seq identity)))}
+    (for [[phrase f] squashers]
+      (let [input (apply-seq f)]
+        (binding [*hold-the-lazy* true]
+          {:phrase phrase :input (pr-str input)})))))
 
-(defn find-phrases []
-  (let [xs [[1 2 3] [4 5 6] [7 8 9]]
-        goal (mapcat seq xs)
-        exclude-syms '#{iterate gen-interface split-at primitives-classnames
-                        var-set trampoline cycle hash-ordered-coll var? meta
-                        read+string volatile? seque refer-clojure bytes
-                        denominator fnext spit}
-        vars (->> (vals (ns-publics 'clojure.core))
-              (remove #(exclude-syms (.sym %)))
-              (filter #(instance? clojure.lang.IFn @%)))]
+(defn print-laziness [results]
+  (print-table [:phrase :input] results))
 
-    (doall
-     (for [v0 vars
-           v1 vars
-           :when (not (= '#{[keep-indexed take-nth] [bytes bytes]}
-                         [(.sym v0) (.sym v1)]))
-           :when (try
-                    (= goal (@v0 @v1 xs))
-                    (catch Throwable t false))]
-       (list v0 v1 'xs)))))
+(defn html-laziness [results]
+  (println "<table>")
+  (doseq [{:keys [phrase input]} results]
+    (println (format "<tr><td>%s</td> <td>%s</td></tr>"
+                     phrase input)))
+  (println "</table>"))
+
+(defn d2-short [f]
+  (doto
+    (seq1 [(seq1 [1 2 3]) (seq1 [4 5 6]) (seq1 [7 8 9]) (seq1 [10 11 12])])
+    f))
+
+(defn d2-short-force1 [f]
+  (doto
+    (seq1 [(seq1 [1 2 3]) (seq1 [4 5 6]) (seq1 [7 8 9]) (seq1 [10 11 12])])
+    (-> f first)))
+
+(defn d2-long [f]
+  (doto
+    (seq1 (map (fn [i] (seq1 (range (* i 3) (+ (* i 3) 3)) (range 5)))))
+    f))
+
+(defn d3 [f]
+  (doto
+    (seq1 [(seq1 [1 2 (seq1 [3 4])]) (seq1 [5 6 (seq1 [7 8])])])
+    f))
 
 ;; read+string hash-ordered-coll
 
 (comment
-  (tc/quick-check 100 sort-idempotent-prop)
-  (tc/quick-check 1000 (t0 ac f))
+  (def ps (find-phrases))
+
   (test-all 500 t0)
   (test-all 100 t1)
   (test-all 10 t2)
 
-  (test-some 10000 t2 [:apc :mci :mcs :sqc :lmc])
+  (print-laziness (observe-laziness d3))
+  (html-laziness (observe-laziness d3)))
 
-  (def ps (find-phrases)))
-
-;;;;; (print-laziness)
-;; |  :fn |                                             :a |                    :c |
-;; |------+------------------------------------------------+-----------------------|
-;; | :flt |                  ((...) (...) (...) (...) ...) |         ((...) (...)) |
-;; | :rei | ((0 ...) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) | ((1 ...) (5 6 (...))) |
-;; | :apc |                  ((...) (...) (...) (...) ...) |         ((...) (...)) |
-;; | :mci |                  ((...) (...) (...) (...) ...) |         ((...) (...)) |
-;; | :mcs |          ((0 ...) (3 ...) (6 ...) (9 ...) ...) |     ((1 ...) (5 ...)) |
-;; | :sqc |                                  ((0 1 2) ...) |     ((1 2 (...)) ...) |
-;; | :lmc |                                          (...) |                 (...) |
-;; | :edc |                                          (...) |                 (...) |
-
-;;;;; (print-laziness) with (first)
-;; |  :fn |                                             :a |                        :c |
-;; |------+------------------------------------------------+---------------------------|
-;; | :flt |                ((0 1 2) (...) (...) (...) ...) |       ((1 2 (...)) (...)) |
-;; | :rei | ((0 ...) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) |     ((1 ...) (5 6 (...))) |
-;; | :apc |                ((0 ...) (...) (...) (...) ...) |           ((1 ...) (...)) |
-;; | :mci |                ((0 ...) (...) (...) (...) ...) |           ((1 ...) (...)) |
-;; | :mcs |          ((0 ...) (3 ...) (6 ...) (9 ...) ...) |         ((1 ...) (5 ...)) |
-;; | :sqc | ((0 1 2) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) | ((1 2 (...)) (5 6 (...))) |
-;; | :lmc |                                  ((0 ...) ...) |             ((1 ...) ...) |
-;; | :edc | ((0 1 2) (3 4 5) (6 7 8) (9 10 11) (12 13 14)) | ((1 2 (...)) (5 6 (...))) |
+;; chouser.mapcatseq=>   (print-laziness (observe-laziness d2-short))
+;; |         :phrase |                                 :input |
+;; |-----------------+----------------------------------------|
+;; |   <i>forced</i> |   ((1 2 3) (4 5 6) (7 8 9) (10 11 12)) |
+;; |         flatten |          ((...) (...) (...) (...) ...) |
+;; |     reduce into |   ((1 ...) (4 5 6) (7 8 9) (10 11 12)) |
+;; |    apply concat |          ((...) (...) (...) (...) ...) |
+;; | mapcat identity |          ((...) (...) (...) (...) ...) |
+;; |      mapcat seq | ((1 ...) (4 ...) (7 ...) (10 ...) ...) |
+;; |    sequence cat |                          ((1 2 3) ...) |
+;; |    eduction cat |                                  (...) |
