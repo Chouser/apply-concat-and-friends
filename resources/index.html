@@ -65,10 +65,6 @@ code {
 .examples td { padding: 0 1em; }
 </style>
 
-<!--
-<link href="https://fonts.googleapis.com/css?family=EB+Garamond" rel="stylesheet">
--->
-
 </head>
 
 <body>
@@ -123,7 +119,7 @@ my answer:</p>
 concat</code> than the alternatives in the poll. Maybe I should conform for the
 sake of community. But it barely beat out <code>flatten</code>, and that is
 entirely unacceptable! I had no choice to but to immediately dawdle,
-procrastinate, and finally four months later write a blog post about it.</p>
+procrastinate, and finally five months later write a blog post about it.</p>
 
 <h2>The infamous <code>flatten</code></h2>
 
@@ -275,13 +271,14 @@ and the <code>:when</code> clause tries the pair and compares against our
 <p>All that's left is to make it not fall apart, so I added a try/catch around
 the scary test invocation. This wasn't enough, so I also manually excluded
 several functions and a couple of combinations that caused problems and won't
-meet the goal. <a href="">This version TODO FIXME</a> runs to completion in
-about 11 seconds and finds 44 equivalent function combinations for the tested
-input. Most of these use <code>mapcat</code>, since it turns out there are lots
-of functions that act like <code>identity</code> in limited circumstances, for
-example <code>mapcat sort</code>. But there are a few others, that look
-interesting: <code>reduce into</code>, <code>sequence cat</code>, and
-<code>eduction cat</code>.</p>
+meet the goal. <a
+href="https://github.com/Chouser/apply-concat-and-friends/blob/92eed8373f1da50050a183d90c558833205791f9/src/chouser/mapcatseq.clj#L9-L18">This
+version</a> runs to completion in about 11 seconds and finds 44 equivalent
+function combinations for the tested input. Most of these use
+<code>mapcat</code>, since it turns out there are lots of functions that act
+like <code>identity</code> in limited circumstances, for example <code>mapcat
+sort</code>. But there are a few others, that look interesting: <code>reduce
+into</code>, <code>sequence cat</code>, and <code>eduction cat</code>.</p>
 
 <h2>The eagerness of <code>reduce into</code></h2>
 
@@ -608,13 +605,12 @@ fundamental.</p>
 <hr>
 
 <footer>
-<p>I wrote <a href="https://github.com/chouser/mapcatseq">some code</a> to help
-explore this space. It's a bit of a mess but includes some generative tests
-I didn't use in the text and defines <code>lazier-mapcat</code> the laziest
-friend of all.</p> <p>Thanks to Anna Houser for illustrating <i>apply concat and
-friends</i>.</p>
-<p>—Chouser, 18 Sept 2019</p>
-</footer>
+<p>I wrote <a
+href="https://github.com/Chouser/apply-concat-and-friends/blob/master/src/chouser/mapcatseq.clj">some
+code</a> to help explore this space. It's a bit of a mess but includes some
+generative tests I didn't use in the text and defines <code>lazier-mapcat</code>
+the laziest friend of all.</p> <p>Thanks to Anna Houser for illustrating
+<i>apply concat and friends</i>.</p> <p>—Chouser, 18 Sept 2019</p> </footer>
 
 </main>
 
