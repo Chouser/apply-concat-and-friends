@@ -85,9 +85,10 @@ seq</code>...</p>
 <tr><td><b>Me: </b></td><td>...</td></tr>
 </table>
 
-<p>The truth is I had never thought of <code>mapcat seq</code> until Christophe
-first mentioned it some years ago, but then I noticed it saves 2 characters
-compared to <code>apply concat</code> and have used it ever since.</p>
+<p>The first I heard of <code>mapcat seq</code> was when Christophe Grand
+mentioned it some years ago. I'm not sure what he found pleasant about it, but
+<i>I</i> love that it's shorter than <code>apply concat</code> (by two
+characters!) and I've used it ever since.</p>
 
 <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just realized that (mapcat seq x) is a pleasant alternative to (apply concat x). <a href="https://twitter.com/hashtag/clojure?src=hash&amp;ref_src=twsrc%5Etfw">#clojure</a></p>&mdash; Christophe Grand (@cgrand) <a href="https://twitter.com/cgrand/status/243793887532052480?ref_src=twsrc%5Etfw">September 6, 2012</a></blockquote>
 
@@ -108,18 +109,19 @@ which is best? I decided to carefully study this question by conducting a
 rigorously controlled and scientific Twitter poll. Twenty-four hours later I had
 my answer:</p>
 
-<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just because they do different things doesn&#39;t mean you can&#39;t have a favorite.</p>&mdash; Chouser (@chrishouser) <a href="https://twitter.com/chrishouser/status/1118913793512411136?ref_src=twsrc%5Etfw">April 18, 2019</a>
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Just because they do different things doesn&#39;t mean you can&#39;t have a favorite.</p>&mdash; Chouser (@chrishouser) <a href="https://twitter.com/chrishouser/status/1118913793512411136?ref_src=twsrc%5Etfw">April 18, 2019</a><br>
 <img src="shot-20190517-090932.png" style="width: 175px; height: 172px"
   alt="Twitter poll results:
   (mapcat seq xs) 9%; (mapcat identity xs) 24%; (apply concat xs) 34%; (flatten xs) 33%">
 </blockquote>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-<p>I don't know what I was expecting, but I can live with more respondents liking <code>apply
-concat</code> than the alternatives in the poll. Maybe I should conform for the
-sake of community. But it barely beat out <code>flatten</code>, and that is
-entirely unacceptable! I had no choice to but to immediately dawdle,
-procrastinate, and finally five months later write a blog post about it.</p>
+<p>I wasn't really expecting everyone to pick my favorite. More respondents
+liked <code>apply concat</code>, and I can live with that. Maybe I should
+conform for the sake of community. But what I can't abide is that it only barely
+beat out <code>flatten</code>! Unacceptable! I had no choice to but to
+immediately dawdle, procrastinate, and finally five months later write a blog
+post about it.</p>
 
 <h2>The infamous <code>flatten</code></h2>
 
@@ -138,9 +140,9 @@ expressions return the same value:</p>
 </pre>
 
 <p>When you reach for any of these expressions, this is usually what you're
-thinking of: take a sequence of things and stitch them together into a single
+thinking of: take a sequence of sequences and stitch them together into a single
 sequence. And <code>flatten</code> indeed does this, but it does a lot more.
-Let's peek at its definition:</p>
+Let's examine its definition:</p>
 
 <pre>
 (defn flatten
@@ -163,13 +165,14 @@ Let's peek at its definition:</p>
 </figcaption>
 </figure>
 
-<p>First, please note the use of <code>tree-seq</code>, an amazingly powerful
-little function for processing any kind of tree into a lazy sequence. It's use
-(and the mention of "nested" in the docstring) suggest <code>flatten</code> is
-treating its input as a tree, not just a sequence of "things". So whereas
-<code>apply concat</code> and <code>mapcat seq</code> <i>assume</i> their input
-is a sequence of seqables and stop there, <code>flatten</code> examines each
-element and may choose to descend deeper into the input, examining as it goes.</p>
+<p>First, note the use of <code>tree-seq</code>, an amazingly powerful little
+function that can return a lazy sequence of a depth-first walk of any kind of
+tree. Its use (and the mention of "nested" in the docstring) suggest
+<code>flatten</code> is treating its input as a tree, not just a sequence of
+sequences. So whereas <code>apply concat</code> and <code>mapcat seq</code>
+<i>assume</i> their input is a sequence of seqables and stop there,
+<code>flatten</code> examines each element and may choose to descend deeper into
+the input, examining as it goes.</p>
 
 <p>Second, note that it uses <code>sequential?</code>, an infrequently used
 predicate in my experience, to choose when to descend. Would it surprise you to
@@ -205,7 +208,7 @@ know this?</p>
 
 <p>So beware, <code>flatten</code> is different and more complicated than the
 alternatives. Only rarely do I have multiple levels of nested sequences that I
-want to flatten, where </code>sequential?</code> correctly defines when I want
+want to flatten, where <code>sequential?</code> correctly defines when I want
 it to descend. I'm not alone in warning about its use. <a
 href="http://clojure-log.n01se.net/date/2012-05-01.html#19:34">Others</a> <a
 href="http://clojure-log.n01se.net/date/2014-01-10.html#11:43d">have</a> <a
@@ -220,17 +223,18 @@ shall we use instead?</p>
 
 <h2>Enumerating alternatives</h2>
 
-<p>The Twitter poll choices were chosen <i>ad hoc</i>, so if we want to find the
-best alternative, perhaps a more rigorous approach to finding alternatives is
-warranted. There are a couple projects to help find all Clojure functions that
-behave in a particular way: Michiel Borkent's somewhat confusingly named <a
-href="https://github.com/borkdude/re-find">re-find</a> which leverages the
-declared specs of functions (via <code>core.spec</code>) to find matches, and
-Anthony Grimes's <a href="https://github.com/Raynes/findfn">findfn</a> which
-tries calling all the functions and macros in namespace to see which produces
-the desired results. Neither quite meets our requirements here because besides
-finding single-function solutions like <code>flatten</code>, we also want
-higher-order solutions like <code>apply concat</code>.</p>
+<p>I didn't put a lot of thought into the choices to give in the Twitter poll,
+so if we want to find the best alternative, perhaps a more rigorous approach to
+finding alternatives is warranted. There are a couple projects to help find all
+Clojure functions that behave in a particular way: Michiel Borkent's somewhat
+confusingly named <a href="https://github.com/borkdude/re-find">re-find</a>
+which leverages the declared specs of functions (via <code>core.spec</code>) to
+find matches, and Anthony Grimes's <a
+href="https://github.com/Raynes/findfn">findfn</a> which tries calling all the
+functions and macros in a namespace to see which produces the desired results.
+Neither quite meets our requirements here because besides finding
+single-function solutions like <code>flatten</code>, we also want higher-order
+solutions like <code>apply concat</code>.</p>
 
 <p>So I wrote a function to specifically look for expressions of the form
 <code>(f1 f2 xs)</code> for any <i>f1</i> and <i>f2</i> that return the same
@@ -252,11 +256,11 @@ value as <code>(mapcat seq xs)</code>.</p>
 </pre>
 
 <p>I don't recommend you run this since it freezes, crashes, and breaks in
-various ways. It turns out some combinations of core functions are not
-well-behaved. But it's almost right: <code>vars</code> is a sequence of all
-public vars in <code>clojure.core</code>, the <code>for</code> builds all pairs,
-and the <code>:when</code> clause tries the pair and compares against our
-<code>goal</code>.</p>
+various ways. You may be surprised to find that some combinations of core
+functions are not well-behaved. But it almost works: <code>vars</code> is a
+sequence of all public vars in <code>clojure.core</code>, the <code>for</code>
+builds all pairs, and the <code>:when</code> clause tries the pair and compares
+against our <code>goal</code>.</p>
 
 <figure style="float: right; width: 240px;">
 <img alt="A very lazy cat, curled up, asleep, with a treasure map on its side"
