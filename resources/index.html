@@ -301,7 +301,7 @@ dependant on the type of the first collection element.</p>
 vector will result in value similar to other alternatives (though as a vector
 instead of a sequence), with an initial list the remaining elements will be
 reversed, and with an initial set the resulting collection is a set instead of a
-sequence with a few elements in indeterminite order.</p>
+sequence with a few elements in indeterminate order.</p>
 
 <table class="examples">
   <tr>
@@ -357,7 +357,7 @@ will work.</p>
 far indistinguishable from each other. Although <code>flatten</code> and
 <code>reduce into</code> behave differently, the rest return apparently
 identical lazy sequences, so how shall we decide which to use? One obvious
-metric would be speed, but microbenchmarks are difficult and of questionable
+metric would be speed, but micro-benchmarks are difficult and of questionable
 value. So why don't we look at something a bit more concrete: laziness.</p>
 
 <h2>Tools for exploring laziness</h2>
@@ -366,7 +366,7 @@ value. So why don't we look at something a bit more concrete: laziness.</p>
 approach is through side effects triggered as the sequence is realized, for
 example <code>(map prn [1 2 3])</code> which returns a sequence of
 <code>nil</code>s but prints each number as it is forced. This is sometimes
-sufficient, but the input suquences we're dealing with here are nested, which
+sufficient, but the input sequences we're dealing with here are nested, which
 would print confusingly intermingled elements, so let's build a couple of tools
 to make laziness easier to see.</p>
 
@@ -438,7 +438,7 @@ function consume some of the <i>range</i> in order to compute the first
 
 <p>Note that the <i>realization</i> of the values is a side-effect of calling
 <code>(first xs)</code>, which is why we can discard that expression's return
-value and instead print the origal <code>xs</code> sequence afterward.</p>
+value and instead print the original <code>xs</code> sequence afterward.</p>
 
 <p>Another detail to notice is that when <code>map</code> is asked to compute
 the first value, it actually computes the first 32 values, a feature called
@@ -469,12 +469,12 @@ section 15.3.1 of <i>Joy of Clojure</i> has just the function we need:</p>
 <p>With these tool in our belt, we're ready to see what just how lazy our
 various flatteners are.</p>
 
-<h2>Multidimentional laziness</h2>
+<h2>Multidimensional laziness</h2>
 
 <p>Most valid inputs to <code>apply concat</code> and friends are themselves at
-least two-dimentional.  For example, here is valid input sequence of length four
-(the first dimention), each element of which is a sequence of length three (the
-second dimention), using <code>seq1</code> to make it fully lazy:</p>
+least two-dimensional.  For example, here is valid input sequence of length four
+(the first dimension), each element of which is a sequence of length three (the
+second dimension), using <code>seq1</code> to make it fully lazy:</p>
 
 <pre>
 (seq1 [(seq1 [1 2 3])
@@ -513,7 +513,7 @@ in common?</p>
 
 <pre>
 (defn mapcat
-  ;; ... ellided for clarity ...
+  ;; ... elided for clarity ...
   ([f & colls]
      (<b>apply concat</b> (apply map f colls))))
 </pre>
@@ -526,7 +526,7 @@ and it doesn't use <code>apply</code>. It does, however, call <code>tree-seq</co
 
 <pre>
 (defn tree-seq
-   ;; ... ellided for clarity ...
+   ;; ... elided for clarity ...
    [branch? children root]
    (let [walk (fn walk [node]
                 (lazy-seq
@@ -548,10 +548,10 @@ and it doesn't use <code>apply</code>. It does, however, call <code>tree-seq</co
 <p>And there it is, a use of <code>mapcat</code> which in turn calls <code>apply
 concat</code> and gives us our four realized elements of the top-level
 collection. It turns out <code>apply concat</code> is much more fundamental than
-I realized. My allegience to <code>mapcat seq</code> is wavering.</p>
+I realized. My allegiance to <code>mapcat seq</code> is wavering.</p>
 
 <p>So now we've seen how of the input is forced by an expression when it is
-first evaluated, but another dimention to examine is <i>time</i>. That is, what
+first evaluated, but another dimension to examine is <i>time</i>. That is, what
 happens when we start to realize parts of the <i>return value</i> of the
 expressions in question.  Here's a chart using the same input collection, but
 showing the state of its laziness after calling <code>first</code> on the
@@ -584,7 +584,7 @@ result:</p>
 <tr><td></td><td>eduction cat</td> <td>((1 2 3) (4 5 6) (7 8 9) (10 11 12))</td></tr>
 </table>
 
-<p>Now we can see in <code>seqeuence cat</code> and <code>eduction cat</code>
+<p>Now we can see in <code>sequence cat</code> and <code>eduction cat</code>
 the eagerness common in transducers; once forced to do some work, they do all of it. The <code>apply concat</code>-based expressions stay relatively lazy, though we can see in the <code>seq</code> in <code>mapcat seq</code> forcing the first element of each sub-collection.</p>
 
 <h2>Answering the question</h2>
@@ -603,13 +603,28 @@ fundamental.</p>
 
 <hr>
 
+<p><i>Updates, 25 Sept 2019:</i>
+<ul>
+  <li> Mark Engelberg <a href="https://twitter.com/mark_engelberg/status/1176909671694602240">warns</a>
+    about trusting the laziness of <code>apply concat</code> and
+    <code>mapcat</code>, and suggests the use of <a href="https://github.com/weavejester/medley/blob/ca04c75b70c3c0f1c6d9887087bc3e88eb0414f6/src/medley/core.cljc#L205"><code>medley.core/join</code></a>
+    instead.
+  <li> <a href="https://twitter.com/pjstadig/status/1176984046477426688">Paul
+      Stadig</a> sometimes likes <code>(for [ys xs y ys] y)</code>, a solution
+    I completely missed and which, depending on how you count, could also shorter
+    than <code>apply concat</code>.
+  <li> Stuart Sierra <a href="https://stuartsierra.com/2019/09/25/sequences-in-flatland">has some thoughts</a>. It's like a little blogosphere!
+  <li> Also, I fixed a bunch of typos, spelling errors, and the publish date.
+</ul>
+</p>
+
 <footer>
 <p>I wrote <a
 href="https://github.com/Chouser/apply-concat-and-friends/blob/master/src/chouser/mapcatseq.clj">some
 code</a> to help explore this space. It's a bit of a mess but includes some
 generative tests I didn't use in the text and defines <code>lazier-mapcat</code>
 the laziest friend of all.</p> <p>Thanks to Anna Houser for illustrating
-<i>apply concat and friends</i>.</p> <p>—Chouser, 18 Sept 2019</p> </footer>
+<i>apply concat</i> and all her friends.</p> <p>—Chouser, 25 Sept 2019</p> </footer>
 
 </main>
 
